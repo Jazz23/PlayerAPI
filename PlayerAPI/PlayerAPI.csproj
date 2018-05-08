@@ -43,8 +43,15 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Item.cs" />
+    <Compile Include="cPlayer.cs" />
+    <Compile Include="Player.cs" />
     <Compile Include="PlayerAPI.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PostBuildEvent>copy /y "$(SolutionDir)$(ProjectName)\$(OutDir)$(ProjectName).dll" "D:\Backup A\Desktop-datadrivve\22 relay - Copy (2)\Plugins\PlayerAPI.dll"
+copy /y "$(SolutionDir)$(ProjectName)\$(OutDir)$(ProjectName).dll" "D:\Backup A\Desktop-datadrivve\22 relay\Plugins\PlayerAPI.dll"</PostBuildEvent>
+  </PropertyGroup>
 </Project>
