@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -14,6 +15,7 @@ using Lib_K_Relay.Networking.Packets.Client;
 using Lib_K_Relay.Networking.Packets.DataObjects;
 using Lib_K_Relay.Networking.Packets.Server;
 using Lib_K_Relay.Utilities;
+using static PlayerAPI.APIs;
 using static PlayerAPI.PlayerAPI;
 
 namespace PlayerAPI
@@ -204,10 +206,97 @@ namespace PlayerAPI
             client.SendToServer(tpacket);
         }
 
-        public static string Name(this Entity entity)
+        public static string GetName(this Entity entity)
         {
             StatData stat = entity.Status.Data.FirstOrDefault(x => x.Id == StatsType.Name);
             return stat == null ? null : stat.StringValue;
+        }
+
+        public static void SendToNexus(this Client client, string host)
+        {
+            if (!GameData.Servers.Map.Values.Select(x => x.Address).Contains(host)) return;
+
+            ReconnectPacket rpacket = Packet.Create<ReconnectPacket>(PacketType.RECONNECT);
+            rpacket.GameId = -2;
+            rpacket.Host = host;
+            rpacket.IsFromArena = false;
+            rpacket.Key = new byte[0];
+            rpacket.KeyTime = client.Time;
+            rpacket.Name = "Nexus";
+            rpacket.Port = 2050;
+            rpacket.Stats = "";
+            ReconnectHandler.SendReconnect(client, rpacket);
+        }
+
+        public static bool IsInNexus(this Client client)
+        {
+            return GameData.Servers.Map.Values.Select(x => x.Address).Contains(client.State.ConTargetAddress);
+        }
+
+        public static Bags GetBag(this Entity entity)
+        {
+            return Enum.IsDefined(typeof(Bags), (short)entity.ObjectType) ? (Bags)(short)entity.ObjectType : 0;
+        }
+
+        public static Entity GetClosestEntity(this Client client)
+        {
+            Entity closest = null;
+            foreach (Entity entity in client.State.RenderedEntities)
+            {
+                if (closest == null || client.WhosCloser(closest, entity) == entity)
+                {
+                    closest = entity;
+                }
+            }
+            return closest;
+        }
+
+        public static Entity WhosCloser(this Client client, Entity entity1, Entity entity2)
+        {
+            float distance1 = entity1.Status.Position.SquareDistanceTo(client.PlayerData.Pos);
+            float distance2 = entity2.Status.Position.SquareDistanceTo(client.PlayerData.Pos);
+            return distance1 < distance2 ? entity1 : entity2;
+        }
+
+        public static void FollowEntity(this Client client, Entity entity)
+        {
+            if (entity != null) client.Self().FollowEntity(entity);
+        }
+
+        public static void StopFollowingEntity(this Client client)
+        {
+            client.Self().TargetEntity = null;
+        }
+
+        public static Entity GetEntityByName(this Client client, string name)
+        {
+            return client.State.RenderedEntities.FirstOrDefault(x => x.Status.Data.FirstOrDefault(z => z.Id == StatsType.Name && z.StringValue.ToLower() == name.ToLower()) != null);
+        }
+
+        public static List<Location> ReverseCopy(this List<Location> list)
+        {
+            List<Location> newList = new List<Location>();
+            newList = list;
+            newList.Reverse();
+            return newList;
+        }
+
+        public static void SendKeyToAllFlash(Virtual_Keys.VirtualKeys key, bool down, params IntPtr[] Exlusions)
+        {
+            foreach (Process proc in Process.GetProcesses().Where(x => x.ProcessName.ToLower().Contains("flash")))
+            {
+                if (!Exlusions.Contains(proc.MainWindowHandle)) PressKey((int)key, down, proc.MainWindowHandle);
+            }
+        }
+
+        public static void PressKey(int Key, bool down, IntPtr Handle)
+        {
+            SendMessage(Handle, (uint)(down ? 0x100 : 0x101), new IntPtr(Key), new IntPtr(0));
+        }
+
+        public static Size GetSize(this RECT rect)
+        {
+            return new Size(rect.Right - rect.Left, rect.Bottom - rect.Top);
         }
 
         //public static void MoveInventory(Slot)
