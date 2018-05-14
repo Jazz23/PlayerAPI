@@ -26,6 +26,7 @@ namespace PlayerAPI
     {
         public event StatDataChange OnStatDataChange;
         public Item[] Inventory;
+        public List<int> InventoryIDS;   // TO TEST
         public Entity Entity;
         public PlayerData PlayerData;
 
@@ -36,12 +37,14 @@ namespace PlayerAPI
         {
             if (entity.Status == null) return;
             Entity = entity;
+            InventoryIDS = new List<int>();
             UpdatePacket packet = new UpdatePacket();
             packet.NewObjs = new Entity[1];
             packet.NewObjs[0] = entity;
             PlayerData = new PlayerData(entity.Status.ObjectId);
             Inventory = GetItems(entity);
             PlayerData.Parse(packet);
+            InventoryIDS = entity.GetInventoryIDS();
         }
 
         public void Parse(Status status)
@@ -55,6 +58,7 @@ namespace PlayerAPI
                     olddata.IntValue = data.IntValue;
                     olddata.StringValue = data.StringValue != null ? data.StringValue : null;
                     PlayerData.Parse(data.Id, data.IntValue, data.StringValue);
+                    InventoryIDS = PlayerData.GetInventoryIDS();
                 }
                 OnStatDataChange?.Invoke(data);
             }

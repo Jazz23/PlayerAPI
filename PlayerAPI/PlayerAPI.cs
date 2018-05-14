@@ -299,6 +299,53 @@ namespace PlayerAPI
             return new Size(rect.Right - rect.Left, rect.Bottom - rect.Top);
         }
 
+        public static void UseAbility(this Client client, byte usetype, Location location = null)   // TO TEST
+        {
+            if (client.PlayerData.Slot[1] != -1)
+            {
+                UseItemPacket upacket = Packet.Create<UseItemPacket>(PacketType.USEITEM);
+                upacket.ItemUsePos = location == null ? client.PlayerData.Pos : location;
+                upacket.SlotObject = client.GetSlotAt(1);
+                upacket.Time = client.Time;
+                upacket.UseType = usetype;
+                client.SendToServer(upacket);
+            }
+        }
+
+        public static SlotObject GetSlotAt(this Client client, int index)   // TO TEST
+        {
+            if (client.Self().Self.InventoryIDS[index] != -1)
+            {
+                SlotObject slot = new SlotObject();
+                slot.ObjectId = client.ObjectId;
+                slot.ObjectType = client.Self().Self.InventoryIDS[index];
+                slot.SlotId = (byte)index;
+                return slot;
+            }
+            return null;
+        }
+
+        public static List<int> GetInventoryIDS(this Entity entity)   // TO TEST
+        {
+            List<int> newList = new List<int>();
+            UpdatePacket packet = new UpdatePacket();
+            packet.NewObjs = new Entity[1];
+            packet.NewObjs[0] = entity;
+            PlayerData PlayerData = new PlayerData(entity.Status.ObjectId);
+            PlayerData.Parse(packet);
+            newList.AddRange(PlayerData.Slot);
+            newList.AddRange(PlayerData.BackPack);
+            return newList;
+        }
+
+        public static List<int> GetInventoryIDS(this PlayerData playerdata)   // TO TEST
+        {
+            List<int> newList = new List<int>();
+            newList.AddRange(playerdata.Slot);
+            newList.AddRange(playerdata.BackPack);
+            return newList;
+        }
+
         //public static void MoveInventory(Slot)
 
         private static void OnNewTick(Client client, NewTickPacket packet)

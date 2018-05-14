@@ -46,7 +46,7 @@ namespace PlayerAPI
         public Location TargetLocation;
         public Entity TargetEntity;
 
-        Dictionary<Entity, List<Location>> EntityPaths = new Dictionary<Entity, List<Location>>();
+        //Dictionary<Entity, List<Location>> EntityPaths = new Dictionary<Entity, List<Location>>();
 
 
 
@@ -138,9 +138,9 @@ namespace PlayerAPI
             {
                 var thing = Players.FirstOrDefault(x => x.PlayerData.OwnerObjectId == status.ObjectId);
                 if (thing != null) thing.Parse(status);
-                Entity entity = Client.GetEntity(status.ObjectId);
-                if (!EntityPaths.ContainsKey(entity)) EntityPaths[entity] = new List<Location>();
-                EntityPaths[entity].Add(status.Position);
+                //Entity entity = Client.GetEntity(status.ObjectId);
+                //if (!EntityPaths.ContainsKey(entity)) EntityPaths[entity] = new List<Location>();
+                //EntityPaths[entity].Add(status.Position);
             }
 
             if (TargetLocation != null)
