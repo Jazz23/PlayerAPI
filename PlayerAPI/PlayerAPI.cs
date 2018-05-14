@@ -346,6 +346,26 @@ namespace PlayerAPI
             return newList;
         }
 
+        /// <summary>
+        /// KILLER BE KILLED MADE THISSSSS
+        /// </summary>
+        /// <param name="handle"></param>
+        public static void PressPlay(IntPtr handle)
+        {
+            RECT windowRect = new RECT();
+            GetWindowRect(handle, ref windowRect);
+            var size = windowRect.GetSize();
+            
+            int playButtonX = size.Width / 2 + windowRect.Left;
+            int playButtonY = (int)((double)size.Height * 0.92) + windowRect.Top;
+            
+            POINT relativePoint = new POINT(playButtonX, playButtonY);
+            ScreenToClient(handle, ref relativePoint);
+            
+            SendMessage(handle, (uint)MouseButton.LeftButtonDown, new IntPtr(0x1), new IntPtr((relativePoint.Y << 16) | (relativePoint.X & 0xFFFF)));
+            SendMessage(handle, (uint)MouseButton.LeftButtonUp, new IntPtr(0x1), new IntPtr((relativePoint.Y << 16) | (relativePoint.X & 0xFFFF)));
+        }
+
         //public static void MoveInventory(Slot)
 
         private static void OnNewTick(Client client, NewTickPacket packet)
