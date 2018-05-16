@@ -37,6 +37,7 @@ namespace PlayerAPI
         public delegate void OnBagDespawn(Entity bag);
         public delegate void StatDataChange(StatData stat);
         public delegate void TargetReached();
+        public delegate void EntityLeave(Entity entity);
 
         private static List<Client> gotoblocks = new List<Client>();
 
@@ -62,6 +63,8 @@ namespace PlayerAPI
                 Connections.Add(client);
                 cPlayers.Add(new cPlayer(client));
             };
+
+            proxy.HookCommand("playerapi", (c, co, a) => c.SendToClient(PluginUtils.CreateNotification(c.ObjectId, "Yup im running")));
         }
 
         private static void OnGotoAck(Client client, GotoAckPacket packet)
@@ -201,8 +204,13 @@ namespace PlayerAPI
 
         public static void TeleportTo(this Client client, string name)
         {
+            client.SendChatMessage("/teleport " + name);
+        }
+
+        public static void SendChatMessage(this Client client, string message)
+        {
             PlayerTextPacket tpacket = Packet.Create<PlayerTextPacket>(PacketType.PLAYERTEXT);
-            tpacket.Text = "/teleport " + name;
+            tpacket.Text = message;
             client.SendToServer(tpacket);
         }
 
@@ -241,7 +249,7 @@ namespace PlayerAPI
         public static Entity GetClosestEntity(this Client client)
         {
             Entity closest = null;
-            foreach (Entity entity in client.State.RenderedEntities)
+            foreach (Entity entity in client.State.RenderedEntities.ToList())
             {
                 if (closest == null || client.WhosCloser(closest, entity) == entity)
                 {
@@ -265,7 +273,7 @@ namespace PlayerAPI
 
         public static void StopFollowingEntity(this Client client)
         {
-            client.Self().TargetEntity = null;
+            client.Self().StopFollowingEntity();
         }
 
         public static Entity GetEntityByName(this Client client, string name)
@@ -366,13 +374,18 @@ namespace PlayerAPI
             SendMessage(handle, (uint)MouseButton.LeftButtonUp, new IntPtr(0x1), new IntPtr((relativePoint.Y << 16) | (relativePoint.X & 0xFFFF)));
         }
 
+        public static void SelfTeleport(this Client client)
+        {
+            client.TeleportTo(client.PlayerData.Name);
+        }
+
         //public static void MoveInventory(Slot)
 
         private static void OnNewTick(Client client, NewTickPacket packet)
         {
             client.Self().Parse(packet);
 
-            foreach (Status stat in packet.Statuses.ToList())
+            foreach (Status stat in packet.Statuses)
             {
                 foreach (cPlayer cplayer in cPlayers.ToList())
                 {

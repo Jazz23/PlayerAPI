@@ -35,6 +35,7 @@ namespace PlayerAPI
         public event OnBagSpawn OnBagSpawn;
         public event OnBagDespawn OnBagDespawn;
         public event TargetReached TargetReached;
+        public event EntityLeave OnEntityLeave;
         #endregion
 
         public List<Player> Players = new List<Player>();
@@ -46,13 +47,16 @@ namespace PlayerAPI
         public Location TargetLocation;
         public Entity TargetEntity;
 
-        //Dictionary<Entity, List<Location>> EntityPaths = new Dictionary<Entity, List<Location>>();
+        public Dictionary<Entity, List<Location>> EntityPaths = new Dictionary<Entity, List<Location>>();
+        public List<Location> TargetEntityPathCopyThing = null;
 
 
 
         public cPlayer(Client client)
         {
             Client = client;
+            OnEntityLeave += OnEntityLeaveMeme;
+            TargetReached += OnTargetReached;
         }
 
         public void FireInventorySwap(Player player, Item[] items)
@@ -107,6 +111,7 @@ namespace PlayerAPI
             foreach (int objectId in packet.Drops.ToList())
             {
                 Entity entity = Client.GetEntity(objectId);
+                OnEntityLeave?.Invoke(entity);
                 if (entity.IsPlayer())
                 {
                     //Player player = entity.GetPlayer();
@@ -138,9 +143,19 @@ namespace PlayerAPI
             {
                 var thing = Players.FirstOrDefault(x => x.PlayerData.OwnerObjectId == status.ObjectId);
                 if (thing != null) thing.Parse(status);
-                //Entity entity = Client.GetEntity(status.ObjectId);
-                //if (!EntityPaths.ContainsKey(entity)) EntityPaths[entity] = new List<Location>();
-                //EntityPaths[entity].Add(status.Position);
+                Entity entity = Client.GetEntity(status.ObjectId);
+                if (entity == null) continue;
+                if (!EntityPaths.ContainsKey(entity)) EntityPaths[entity] = new List<Location>();
+                EntityPaths[entity].Add(status.Position);
+                if (TargetEntityPathCopyThing != null && TargetEntity?.Status.ObjectId == entity.Status.ObjectId)
+                {
+                    TargetEntityPathCopyThing.Add(status.Position);
+                }
+            }
+
+            if (TargetEntityPathCopyThing?.Count() > 0)
+            {
+                TargetLocation = TargetEntityPathCopyThing.First();
             }
 
             if (TargetLocation != null)
@@ -153,21 +168,42 @@ namespace PlayerAPI
                     TargetReached?.Invoke();
                 }
             }
-            else if (TargetEntity != null)
-            {
-                Location result = Lerp(Client.PlayerData.Pos, TargetEntity.Status.Position, Client.PlayerData.TilesPerTick());
-                Client.SendGoto(result);
-            }
         }
 
         public void FollowEntity(Entity entity)
         {
             TargetEntity = entity;
+            TargetEntityPathCopyThing = new List<Location>();
+            TargetEntityPathCopyThing.Add(TargetEntity.Status.Position);
+            TargetLocation = TargetEntity.Status.Position;
         }
 
         public void StopFollowingEntity()
         {
             TargetEntity = null;
+            TargetEntityPathCopyThing = null;
+            TargetLocation = null;
+        }
+
+        private void OnEntityLeaveMeme(Entity ent)
+        {
+            if (ent?.Status.ObjectId == TargetEntity?.Status.ObjectId)
+            {
+                StopFollowingEntity();
+            }
+        }
+
+        private void OnTargetReached()
+        {
+            if (TargetEntityPathCopyThing?.Count() > 0)
+            {
+                if (TargetEntityPathCopyThing.First() == TargetEntity?.Status.Position && TargetEntity != null)
+                {
+                    TargetEntityPathCopyThing.Clear();
+                    TargetEntityPathCopyThing.Add(TargetEntity.Status.Position);
+                }
+                TargetEntityPathCopyThing.RemoveAt(0);
+            }
         }
 
         /// <summary>
