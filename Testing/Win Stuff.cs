@@ -14,7 +14,7 @@ using System.Threading;
 
 namespace PlayerAPI
 {
-    public static class WinAPIs
+    public static class APIs
     {
         [DllImport("user32.dll", SetLastError = true)]
         public static extern IntPtr GetForegroundWindow();

@@ -15,7 +15,7 @@ using Lib_K_Relay.Networking.Packets.Client;
 using Lib_K_Relay.Networking.Packets.DataObjects;
 using Lib_K_Relay.Networking.Packets.Server;
 using Lib_K_Relay.Utilities;
-using static PlayerAPI.APIs;
+using static PlayerAPI.WinAPIs;
 using static PlayerAPI.PlayerAPI;
 
 namespace PlayerAPI
@@ -36,8 +36,8 @@ namespace PlayerAPI
         public delegate void OnBagSpawn(Entity bag);
         public delegate void OnBagDespawn(Entity bag);
         public delegate void StatDataChange(StatData stat);
-        public delegate void TargetReached();
         public delegate void EntityLeave(Entity entity);
+        public delegate void TargetReached();
 
         private static List<Client> gotoblocks = new List<Client>();
 
@@ -52,9 +52,9 @@ namespace PlayerAPI
             {
                 Connections.Remove(client);
                 if (client.PlayerData == null) return;
-                if (cPlayers.Select(x => x.Client.PlayerData != null ? x.Client.PlayerData.AccountId : null).Contains(client.PlayerData.AccountId))
+                if (cPlayers.ToList().Select(x => x.Client.PlayerData != null ? x.Client.PlayerData.AccountId : null).Contains(client.PlayerData.AccountId))
                 {                                                                                                           // Im kinda a linq boi so this is slightly unnessary but i like less lines
-                    cPlayers.Remove(cPlayers.Single(x => x.Client.PlayerData != null && x.Client.PlayerData.AccountId == client.PlayerData.AccountId));
+                    cPlayers.Remove(cPlayers.ToList().Single(x => x.Client.PlayerData != null && x.Client.PlayerData.AccountId == client.PlayerData.AccountId));
                 }
             };
 
@@ -148,8 +148,7 @@ namespace PlayerAPI
 
         public static cPlayer Self(this Client client)
         {
-            cPlayer player = cPlayers.FirstOrDefault(x => x.Client.State.ACCID == client.State.ACCID && client.Connected);
-            return player != null ? player : null;
+            return cPlayers.FirstOrDefault(x => x.Client.State.ACCID == client.State.ACCID && client.Connected);
         }
 
         public static bool IsInventory(this StatData data)
@@ -205,6 +204,11 @@ namespace PlayerAPI
         public static void TeleportTo(this Client client, string name)
         {
             client.SendChatMessage("/teleport " + name);
+            if (client.Time - client.Self().LastTeleportTime >= 10000)
+            {
+                Console.WriteLine("tele");
+                client.Self().LastTeleportTime = client.Time;
+            }
         }
 
         public static void SendChatMessage(this Client client, string message)
@@ -238,7 +242,12 @@ namespace PlayerAPI
 
         public static bool IsInNexus(this Client client)
         {
-            return GameData.Servers.Map.Values.Select(x => x.Address).Contains(client.State.ConTargetAddress);
+            return client.LastConnection() == "Nexus";
+        }
+
+        public static bool IsInRealm(this Client client)
+        {
+            return client.LastConnection() == "Realm of the Mad God";
         }
 
         public static Bags GetBag(this Entity entity)
@@ -254,6 +263,19 @@ namespace PlayerAPI
                 if (closest == null || client.WhosCloser(closest, entity) == entity)
                 {
                     closest = entity;
+                }
+            }
+            return closest;
+        }
+
+        public static Player GetClosestPlayer(this Client client)
+        {
+            Player closest = null;
+            foreach (Player player in client.Self().Players)
+            {
+                if (player.PlayerData.AccountId != client.PlayerData.AccountId && closest == null || client.PlayerData.Pos.SquareDistanceTo(player.PlayerData.Pos) < client.PlayerData.Pos.SquareDistanceTo(closest.PlayerData.Pos))
+                {
+                    closest = player;
                 }
             }
             return closest;
@@ -291,10 +313,25 @@ namespace PlayerAPI
 
         public static void SendKeyToAllFlash(Virtual_Keys.VirtualKeys key, bool down, params IntPtr[] Exlusions)
         {
-            foreach (Process proc in Process.GetProcesses().Where(x => x.ProcessName.ToLower().Contains("flash")))
+            SendKeyToHandles(key, down, GetAllFlashPointers(), Exlusions);
+        }
+
+        public static void SendKeyToHandles(Virtual_Keys.VirtualKeys key, bool down, IntPtr[] handles, params IntPtr[] Exlusions)
+        {
+            foreach (IntPtr handle in handles)
             {
-                if (!Exlusions.Contains(proc.MainWindowHandle)) PressKey((int)key, down, proc.MainWindowHandle);
+                if (!Exlusions.Contains(handle)) PressKey((int)key, down, handle);
             }
+        }
+
+        public static IntPtr[] GetAllFlashPointers()
+        {
+            var procs = Process.GetProcesses().Where(x => x.ProcessName.ToLower().Contains("flash"));
+            if (procs.Count() != 0)
+            {
+                return procs.Select(x => x.MainWindowHandle).ToArray();
+            }
+            return null;
         }
 
         public static void PressKey(int Key, bool down, IntPtr Handle)
@@ -363,13 +400,13 @@ namespace PlayerAPI
             RECT windowRect = new RECT();
             GetWindowRect(handle, ref windowRect);
             var size = windowRect.GetSize();
-            
+
             int playButtonX = size.Width / 2 + windowRect.Left;
             int playButtonY = (int)((double)size.Height * 0.92) + windowRect.Top;
-            
+
             POINT relativePoint = new POINT(playButtonX, playButtonY);
             ScreenToClient(handle, ref relativePoint);
-            
+
             SendMessage(handle, (uint)MouseButton.LeftButtonDown, new IntPtr(0x1), new IntPtr((relativePoint.Y << 16) | (relativePoint.X & 0xFFFF)));
             SendMessage(handle, (uint)MouseButton.LeftButtonUp, new IntPtr(0x1), new IntPtr((relativePoint.Y << 16) | (relativePoint.X & 0xFFFF)));
         }
@@ -379,6 +416,58 @@ namespace PlayerAPI
             client.TeleportTo(client.PlayerData.Name);
         }
 
+        public static void ToggleEntityFollow(this Client client, Entity entity)
+        {
+            var player = client.Self();
+            if (player.TargetEntity == null) client.FollowEntity(entity);
+            else client.StopFollowingEntity();
+        }
+
+        /// <summary>
+        /// May cause dc if the client walks over a wall (its a straight line)
+        /// </summary>
+        /// <param name="location"></param>
+        public static void GotoLocation(this Client client, Location location)
+        {
+            client.Self().TargetLocation = location;
+        }
+
+        public static float ToDegrees(this float radians)
+        {
+            return (float)(radians * 180 / Math.PI);
+        }
+        public static float ToRadians(this float degrees)
+        {
+            return (float)(degrees * Math.PI / 180);
+        }
+
+        public static string[] Split(this string Input, string Seperator)
+        {
+            return Input.Split(new[] { Seperator }, StringSplitOptions.RemoveEmptyEntries);
+        }
+
+        public static void SetNextSpawnLocation(this Client client, Location location) // TO BE TESTED
+        {
+            client.State["NextSpawn"] = location;
+        }
+
+        public static void SendToRealm(this Client client, string host, string name = "bingle")
+        {
+            client.SendToClient(BuidReconnectPacket(0, host, client.Time, name));
+        }
+
+        public static ReconnectPacket BuidReconnectPacket(int gameId, string host, int keytime, string name = "bingle", bool isfromarena = false, string stats = "", params byte[] key)
+        {
+            ReconnectPacket rpacket = Packet.Create<ReconnectPacket>(PacketType.RECONNECT);
+            rpacket.GameId = gameId;
+            rpacket.Host = host;
+            rpacket.IsFromArena = isfromarena;
+            rpacket.Key = key;
+            rpacket.KeyTime = keytime;
+            rpacket.Name = name;
+            rpacket.Stats = stats;
+            return rpacket;
+        }
         //public static void MoveInventory(Slot)
 
         private static void OnNewTick(Client client, NewTickPacket packet)

@@ -32,6 +32,7 @@
   <ItemGroup>
     <Reference Include="Lib K Relay">
       <HintPath>..\..\..\Backup A\Desktop-datadrivve\_KRelay-server_change_test\Lib K Relay\bin\Release\Lib K Relay.dll</HintPath>
+      <Private>False</Private>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -44,6 +45,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Plugin.cs" />
     <Compile Include="Virtual Keys.cs" />
     <Compile Include="Win Stuff.cs" />
     <Compile Include="Item.cs" />

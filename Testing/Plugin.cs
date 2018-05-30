@@ -7,6 +7,11 @@ using Lib_K_Relay.Networking.Packets.Server;
 using Lib_K_Relay.Networking.Packets.DataObjects;
 using Lib_K_Relay.Utilities;
 using PlayerAPI;
+using System;
+using System.Threading.Tasks;
+using System.Threading;
+using System.Linq;
+using static PlayerAPI.PlayerAPI;
 
 namespace Plugin
 {
@@ -35,14 +40,18 @@ namespace Plugin
             };
         }
 
+        public static Random Random = new Random();
         public void Initialize(Proxy proxy)
         {
-            PlayerAPI.PlayerAPI.Start(proxy);
-            proxy.HookCommand("fellow", (c, co, a) =>
+            proxy.OnTouchDown += client =>
             {
-                if (c.Self().TargetEntity == null) c.FollowEntity(c.GetEntityByName(a[0]));
-                else c.StopFollowingEntity();
-            });
+                if (client.LastConnection() == "Nexus")
+                {
+                    float ran = Random.Next(-300, 300) * 0.01f;
+                    float idk = Random.Next(0, 50) * 0.01f + 1f;
+                    client.SetNextSpawnLocation(new Location(159.5f + ran, 129.0f + idk));
+                }
+            };
         }
     }
 }

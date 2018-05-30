@@ -46,6 +46,7 @@ namespace PlayerAPI
         public Client Client;
         public Location TargetLocation;
         public Entity TargetEntity;
+        public int LastTeleportTime = -10000;
 
         public Dictionary<Entity, List<Location>> EntityPaths = new Dictionary<Entity, List<Location>>();
         public List<Location> TargetEntityPathCopyThing = null;
@@ -56,7 +57,6 @@ namespace PlayerAPI
         {
             Client = client;
             OnEntityLeave += OnEntityLeaveMeme;
-            TargetReached += OnTargetReached;
         }
 
         public void FireInventorySwap(Player player, Item[] items)
@@ -82,6 +82,11 @@ namespace PlayerAPI
             if (self != null)
             {
                 HitTheGround(self);
+                if (Client.State["NextSpawn"] != null)
+                {
+                    self.Status.Position = Client.State["NextSpawn"] as Location;
+                    Client.State["NextSpawn"] = null;
+                }
             }
 
             foreach (Entity entity in packet.NewObjs)
@@ -165,9 +170,21 @@ namespace PlayerAPI
                 if (result.ToString() == TargetLocation.ToString())
                 {
                     TargetLocation = null;
-                    TargetReached?.Invoke();
+                    if (TargetEntityPathCopyThing?.Count() > 0)
+                    {
+                        OnTargetReached();
+                    }
+                    else
+                    {
+                        TargetReached?.Invoke();
+                    }
                 }
             }
+        }
+
+        public void FireThing()
+        {
+            TargetReached?.Invoke();
         }
 
         public void FollowEntity(Entity entity)
@@ -187,7 +204,7 @@ namespace PlayerAPI
 
         private void OnEntityLeaveMeme(Entity ent)
         {
-            if (ent?.Status.ObjectId == TargetEntity?.Status.ObjectId)
+            if (ent?.Status.ObjectId == TargetEntity?.Status.ObjectId && TargetEntity != null)
             {
                 StopFollowingEntity();
             }
@@ -195,24 +212,12 @@ namespace PlayerAPI
 
         private void OnTargetReached()
         {
-            if (TargetEntityPathCopyThing?.Count() > 0)
+            TargetEntityPathCopyThing.RemoveAt(0);
+            if (TargetEntityPathCopyThing.First() == TargetEntity?.Status.Position && TargetEntity != null)
             {
-                if (TargetEntityPathCopyThing.First() == TargetEntity?.Status.Position && TargetEntity != null)
-                {
-                    TargetEntityPathCopyThing.Clear();
-                    TargetEntityPathCopyThing.Add(TargetEntity.Status.Position);
-                }
-                TargetEntityPathCopyThing.RemoveAt(0);
+                TargetEntityPathCopyThing.Clear();
+                TargetEntityPathCopyThing.Add(TargetEntity.Status.Position);
             }
-        }
-
-        /// <summary>
-        /// May cause dc if the client walks over a wall (its a straight line)
-        /// </summary>
-        /// <param name="location"></param>
-        public void GotoLocation(Location location)
-        {
-            TargetLocation = location;
         }
     }
 }
