@@ -201,13 +201,15 @@ namespace PlayerAPI
             return ((MapInfoPacket)client.State["MapInfo"]).Name;
         }
 
-        public static void TeleportTo(this Client client, string name)
+        public static void TeleportTo(this Client client, string name, bool tryanyways = false)
         {
-            client.SendChatMessage("/teleport " + name);
-            if (client.Time - client.Self().LastTeleportTime >= 10000)
+            if (tryanyways || client.Self().LastTeleportTime >= 10100 && !NonUniqueNames.Names.Contains(name))
             {
-                Console.WriteLine("tele");
-                client.Self().LastTeleportTime = client.Time;
+                client.SendChatMessage("/teleport " + name);
+                if (client.Time - client.Self().LastTeleportTime >= 10000)
+                {
+                    client.Self().LastTeleportTime = client.Time;
+                }
             }
         }
 
@@ -238,6 +240,11 @@ namespace PlayerAPI
             rpacket.Port = 2050;
             rpacket.Stats = "";
             ReconnectHandler.SendReconnect(client, rpacket);
+        }
+
+        public static void EscapeToNexus(this Client client)
+        {
+            client.SendToServer(Packet.Create<EscapePacket>(PacketType.ESCAPE));
         }
 
         public static bool IsInNexus(this Client client)
@@ -334,9 +341,14 @@ namespace PlayerAPI
             return null;
         }
 
-        public static void PressKey(int Key, bool down, IntPtr Handle)
+        public static void PressKey(int key, bool down, IntPtr Handle)
         {
-            SendMessage(Handle, (uint)(down ? 0x100 : 0x101), new IntPtr(Key), new IntPtr(0));
+            SendMessage(Handle, (uint)(down ? 0x100 : 0x101), new IntPtr(key), new IntPtr(0));
+        }
+
+        public static void PressKey(Virtual_Keys.VirtualKeys key, bool down, IntPtr Handle)
+        {
+            SendMessage(Handle, (uint)(down ? 0x100 : 0x101), new IntPtr((int)key), new IntPtr(0));
         }
 
         public static Size GetSize(this RECT rect)
@@ -467,6 +479,22 @@ namespace PlayerAPI
             rpacket.Name = name;
             rpacket.Stats = stats;
             return rpacket;
+        }
+
+        public static Player GetClosestPlayerToPoint(this Client client, Location point)
+        {
+            Player closest = client.Self().Players.First();
+            foreach (Player player in client.Self().Players)
+            {
+                if (player.PlayerData.Pos.SquareDistanceTo(point) < closest.PlayerData.Pos.SquareDistanceTo(point))
+                    closest = player;
+            }
+            return closest;
+        }
+
+        public static void TeleportToClosestPlayerToPoint(this Client client, Location point)
+        {
+            client.TeleportTo(client.GetClosestPlayerToPoint(point).PlayerData.Name);
         }
         //public static void MoveInventory(Slot)
 

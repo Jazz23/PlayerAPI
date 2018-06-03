@@ -45,6 +45,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="NonUniqueNames.cs" />
     <Compile Include="Plugin.cs" />
     <Compile Include="Virtual Keys.cs" />
     <Compile Include="Win Stuff.cs" />
